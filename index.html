@@ -66,6 +66,7 @@
     .tab[data-mode="new"] { border-top: 3px solid #3B82F6; }
     .tab[data-mode="bug"] { border-top: 3px solid #EF4444; }
     .tab[data-mode="feature"] { border-top: 3px solid #10B981; }
+    .tab[data-mode="fix"] { border-top: 3px solid #F59E0B; }
 
     .main {
       padding: 0 16px 100px;
@@ -242,11 +243,19 @@
       border-color: #10B981;
     }
 
+    .panel[data-panel="fix"] textarea:focus,
+    .panel[data-panel="fix"] input:focus {
+      border-color: #F59E0B;
+    }
+
     .btn-bug { background: #EF4444 !important; }
     .btn-bug:active { background: #DC2626 !important; }
 
     .btn-feature { background: #10B981 !important; }
     .btn-feature:active { background: #059669 !important; }
+
+    .btn-fix { background: #F59E0B !important; }
+    .btn-fix:active { background: #D97706 !important; }
 
     /* Placeholder styling */
     ::placeholder { color: #C4C9D4; }
@@ -286,6 +295,7 @@
   <button class="tab active" data-mode="new" onclick="switchTab('new')">🆕 新規企画</button>
   <button class="tab" data-mode="bug" onclick="switchTab('bug')">🐛 バグ修正</button>
   <button class="tab" data-mode="feature" onclick="switchTab('feature')">✨ 機能追加</button>
+  <button class="tab" data-mode="fix" onclick="switchTab('fix')">🔧 機能修正</button>
 </div>
 
 <div class="main">
@@ -378,6 +388,47 @@
 
     <button class="generate-btn btn-bug" onclick="generate('bug')">🔍 プロンプトを生成する</button>
     <button class="clear-btn" onclick="clearForm('bug')">フォームをリセット</button>
+  </div>
+
+  <!-- 機能修正 -->
+  <div class="panel" data-panel="fix">
+    <div class="section-title">修正内容の概要</div>
+
+    <div class="field-group">
+      <label>概要<span class="required">*</span><span class="hint">何を修正するか一言で</span></label>
+      <textarea class="short" id="fix-summary" placeholder="例：検索機能の絞り込み精度を改善したい"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>現在の動作<span class="required">*</span><span class="hint">今どう動いているか</span></label>
+      <textarea id="fix-current" placeholder="例：キーワード検索で部分一致が機能しておらず、完全一致のみヒットする"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>修正後の期待動作<span class="required">*</span><span class="hint">どう変えたいか</span></label>
+      <textarea id="fix-expected" placeholder="例：部分一致・大文字小文字を無視した検索ができるようにする"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>修正理由・背景<span class="hint">なぜ修正が必要か</span></label>
+      <textarea class="short" id="fix-reason" placeholder="例：ユーザーから「検索で見つからない」という報告が多く、UX改善のため"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">技術・制約</div>
+
+    <div class="field-group">
+      <label>環境・バージョン</label>
+      <textarea class="short" id="fix-env" placeholder="例：Vue 3 / TypeScript / Firebase"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>制約・注意事項</label>
+      <textarea class="short" id="fix-note" placeholder="例：既存のAPIは変更不可。フロントエンドのみで対応すること。"></textarea>
+    </div>
+
+    <button class="generate-btn btn-fix" onclick="generate('fix')">🔧 プロンプトを生成する</button>
+    <button class="clear-btn" onclick="clearForm('fix')">フォームをリセット</button>
   </div>
 
   <!-- 機能追加 -->
@@ -505,6 +556,37 @@ ${env      ? `## 環境・バージョン\n${env}\n` : ''}
 ${note     ? `## 制約・注意事項\n${note}\n` : ''}
 ---
 上記のバグの原因を特定し、修正方法を提示してください。コードを修正する場合は修正前後の差分を示してください。`;
+    }
+
+    else if (mode === 'fix') {
+      const summary  = val('fix-summary');
+      const current  = val('fix-current');
+      const expected = val('fix-expected');
+      const reason   = val('fix-reason');
+      const env      = val('fix-env');
+      const note     = val('fix-note');
+
+      if (!summary || !current || !expected) {
+        alert('「概要」「現在の動作」「修正後の期待動作」は必須です。');
+        return;
+      }
+
+      prompt = `# 機能修正の依頼
+
+## 概要
+${summary}
+
+## 現在の動作
+${current}
+
+## 修正後の期待動作
+${expected}
+${reason ? `\n## 修正理由・背景\n${reason}` : ''}
+${env    ? `\n## 環境・バージョン\n${env}` : ''}
+${note   ? `\n## 制約・注意事項\n${note}` : ''}
+
+---
+上記の内容をもとに、既存機能を修正する実装方法を提案してください。修正箇所と影響範囲も合わせて教えてください。`;
     }
 
     else if (mode === 'feature') {
