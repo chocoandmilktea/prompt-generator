@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIプロンプトジェネレーター</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: #F0F2F5;
+      color: #1A1A2E;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1A1A2E;
+      color: #fff;
+      padding: 20px 24px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    header p {
+      font-size: 13px;
+      color: #A0AEC0;
+      margin-top: 4px;
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      padding: 16px 16px 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-bar::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex-shrink: 0;
+      padding: 10px 20px;
+      border-radius: 10px 10px 0 0;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      background: #D1D5DB;
+      color: #6B7280;
+    }
+
+    .tab.active {
+      background: #fff;
+      color: #1A1A2E;
+    }
+
+    .tab[data-mode="new"] { border-top: 3px solid #3B82F6; }
+    .tab[data-mode="bug"] { border-top: 3px solid #EF4444; }
+    .tab[data-mode="feature"] { border-top: 3px solid #10B981; }
+    .tab[data-mode="fix"] { border-top: 3px solid #F59E0B; }
+
+    .main {
+      padding: 0 16px 100px;
+    }
+
+    .panel {
+      display: none;
+      background: #fff;
+      border-radius: 0 12px 12px 12px;
+      padding: 20px 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .panel.active { display: block; }
+
+    .field-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    label span.required {
+      color: #EF4444;
+      margin-left: 4px;
+    }
+
+    label span.hint {
+      font-weight: 400;
+      color: #9CA3AF;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #1A1A2E;
+      background: #FAFAFA;
+      resize: vertical;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #3B82F6;
+      background: #fff;
+    }
+
+    textarea { min-height: 80px; }
+    textarea.short { min-height: 60px; }
+    textarea.tall { min-height: 110px; }
+
+    .divider {
+      height: 1px;
+      background: #F3F4F6;
+      margin: 20px 0;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9CA3AF;
+      margin-bottom: 14px;
+    }
+
+    .generate-btn {
+      width: 100%;
+      padding: 16px;
+      background: #1A1A2E;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .generate-btn:active { transform: scale(0.98); background: #2D3748; }
+
+    .clear-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      color: #9CA3AF;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Result Area */
+    .result-area {
+      margin: 16px 16px 0;
+      display: none;
+    }
+
+    .result-area.visible { display: block; }
+
+    .result-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .result-header h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .copy-btn {
+      padding: 8px 16px;
+      background: #3B82F6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:active { background: #2563EB; }
+    .copy-btn.copied { background: #10B981; }
+
+    .result-text {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #374151;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #F9FAFB;
+      border-radius: 8px;
+      padding: 14px;
+      border: 1px solid #E5E7EB;
+      min-height: 120px;
+    }
+
+    /* Color accents per mode */
+    .panel[data-panel="bug"] textarea:focus,
+    .panel[data-panel="bug"] input:focus {
+      border-color: #EF4444;
+    }
+
+    .panel[data-panel="feature"] textarea:focus,
+    .panel[data-panel="feature"] input:focus {
+      border-color: #10B981;
+    }
+
+    .panel[data-panel="fix"] textarea:focus,
+    .panel[data-panel="fix"] input:focus {
+      border-color: #F59E0B;
+    }
+
+    .btn-bug { background: #EF4444 !important; }
+    .btn-bug:active { background: #DC2626 !important; }
+
+    .btn-feature { background: #10B981 !important; }
+    .btn-feature:active { background: #059669 !important; }
+
+    .btn-fix { background: #F59E0B !important; }
+    .btn-fix:active { background: #D97706 !important; }
+
+    /* Placeholder styling */
+    ::placeholder { color: #C4C9D4; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1A1A2E;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      z-index: 999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AIプロンプトジェネレーター</h1>
+  <p>入力内容から的確なプロンプトを自動生成</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab active" data-mode="new" onclick="switchTab('new')">🆕 新規企画</button>
+  <button class="tab" data-mode="bug" onclick="switchTab('bug')">🐛 バグ修正</button>
+  <button class="tab" data-mode="feature" onclick="switchTab('feature')">✨ 機能追加</button>
+  <button class="tab" data-mode="fix" onclick="switchTab('fix')">🔧 機能修正</button>
+</div>
+
+<div class="main">
+
+  <!-- 新規企画 -->
+  <div class="panel active" data-panel="new">
+    <div class="section-title">基本情報</div>
+
+    <div class="field-group">
+      <label>アプリ名<span class="required">*</span></label>
+      <input type="text" id="new-name" placeholder="例：タスク管理アプリ「TaskFlow」">
+    </div>
+
+    <div class="field-group">
+      <label>概要<span class="required">*</span><span class="hint">何を作るか一言で</span></label>
+      <textarea class="short" id="new-summary" placeholder="例：チームで使えるシンプルなタスク管理Webアプリ"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>詳細内容<span class="required">*</span><span class="hint">機能・仕様・画面構成など</span></label>
+      <textarea class="tall" id="new-detail" placeholder="例：ログイン機能、タスクのCRUD、担当者アサイン、締切通知機能を持つ。トップ画面はカンバンボード形式。"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">技術・制約</div>
+
+    <div class="field-group">
+      <label>環境・バージョン<span class="hint">言語・FW・OSなど</span></label>
+      <textarea class="short" id="new-env" placeholder="例：React 18 / Node.js 20 / PostgreSQL / Docker"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>制約・注意事項<span class="hint">禁止事項・既存コードの制限など</span></label>
+      <textarea class="short" id="new-note" placeholder="例：外部APIは使用不可。既存のデザインシステムに合わせること。"></textarea>
+    </div>
+
+    <button class="generate-btn" onclick="generate('new')">🚀 プロンプトを生成する</button>
+    <button class="clear-btn" onclick="clearForm('new')">フォームをリセット</button>
+  </div>
+
+  <!-- バグ修正 -->
+  <div class="panel" data-panel="bug">
+    <div class="section-title">バグの概要</div>
+
+    <div class="field-group">
+      <label>概要<span class="required">*</span><span class="hint">バグを一言で</span></label>
+      <textarea class="short" id="bug-summary" placeholder="例：ログインボタンを押しても画面遷移しない"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">詳細情報</div>
+
+    <div class="field-group">
+      <label>症状</label>
+      <textarea class="short" id="bug-symptom" placeholder="例：ログインボタンをタップしても、ローディングが出たあと何も起きない"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>再現手順</label>
+      <textarea id="bug-steps" placeholder="例：1. アプリを起動&#10;2. メールアドレスとパスワードを入力&#10;3. ログインボタンをタップ"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>期待動作</label>
+      <textarea class="short" id="bug-expected" placeholder="例：ホーム画面に遷移する"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>実際の動作</label>
+      <textarea class="short" id="bug-actual" placeholder="例：ローディングが3秒表示されたあと、ログイン画面に戻る"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>エラーログ<span class="hint">あれば貼り付け</span></label>
+      <textarea id="bug-log" placeholder="例：TypeError: Cannot read properties of undefined (reading 'token')"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">技術・制約</div>
+
+    <div class="field-group">
+      <label>環境・バージョン</label>
+      <textarea class="short" id="bug-env" placeholder="例：iOS 17 / Swift 5.9 / Xcode 15"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>制約・注意事項</label>
+      <textarea class="short" id="bug-note" placeholder="例：本番環境のみで発生。ステージングでは再現しない。"></textarea>
+    </div>
+
+    <button class="generate-btn btn-bug" onclick="generate('bug')">🔍 プロンプトを生成する</button>
+    <button class="clear-btn" onclick="clearForm('bug')">フォームをリセット</button>
+  </div>
+
+  <!-- 機能修正 -->
+  <div class="panel" data-panel="fix">
+    <div class="section-title">修正内容の概要</div>
+
+    <div class="field-group">
+      <label>概要<span class="required">*</span><span class="hint">何を修正するか一言で</span></label>
+      <textarea class="short" id="fix-summary" placeholder="例：検索機能の絞り込み精度を改善したい"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>現在の動作<span class="required">*</span><span class="hint">今どう動いているか</span></label>
+      <textarea id="fix-current" placeholder="例：キーワード検索で部分一致が機能しておらず、完全一致のみヒットする"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>修正後の期待動作<span class="required">*</span><span class="hint">どう変えたいか</span></label>
+      <textarea id="fix-expected" placeholder="例：部分一致・大文字小文字を無視した検索ができるようにする"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>修正理由・背景<span class="hint">なぜ修正が必要か</span></label>
+      <textarea class="short" id="fix-reason" placeholder="例：ユーザーから「検索で見つからない」という報告が多く、UX改善のため"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">技術・制約</div>
+
+    <div class="field-group">
+      <label>環境・バージョン</label>
+      <textarea class="short" id="fix-env" placeholder="例：Vue 3 / TypeScript / Firebase"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>制約・注意事項</label>
+      <textarea class="short" id="fix-note" placeholder="例：既存のAPIは変更不可。フロントエンドのみで対応すること。"></textarea>
+    </div>
+
+    <button class="generate-btn btn-fix" onclick="generate('fix')">🔧 プロンプトを生成する</button>
+    <button class="clear-btn" onclick="clearForm('fix')">フォームをリセット</button>
+  </div>
+
+  <!-- 機能追加 -->
+  <div class="panel" data-panel="feature">
+    <div class="section-title">追加機能の概要</div>
+
+    <div class="field-group">
+      <label>概要<span class="required">*</span><span class="hint">追加する機能を一言で</span></label>
+      <textarea class="short" id="feature-summary" placeholder="例：ダークモード切り替え機能を追加したい"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>詳細内容<span class="required">*</span><span class="hint">どんな動作・UIが必要か</span></label>
+      <textarea class="tall" id="feature-detail" placeholder="例：設定画面にトグルスイッチを追加し、ONにするとアプリ全体がダークテーマに切り替わる。設定はローカルに保存し、次回起動時も反映させる。"></textarea>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">技術・制約</div>
+
+    <div class="field-group">
+      <label>環境・バージョン</label>
+      <textarea class="short" id="feature-env" placeholder="例：Flutter 3.19 / Dart 3.3 / Android・iOS両対応"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>制約・注意事項</label>
+      <textarea class="short" id="feature-note" placeholder="例：既存のコンポーネントを壊さないこと。追加のパッケージは最小限に。"></textarea>
+    </div>
+
+    <button class="generate-btn btn-feature" onclick="generate('feature')">✨ プロンプトを生成する</button>
+    <button class="clear-btn" onclick="clearForm('feature')">フォームをリセット</button>
+  </div>
+
+</div>
+
+<!-- 生成結果 -->
+<div class="result-area" id="result-area">
+  <div class="result-box">
+    <div class="result-header">
+      <h2>📋 生成されたプロンプト</h2>
+      <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">コピー</button>
+    </div>
+    <div class="result-text" id="result-text"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ コピーしました</div>
+
+<script>
+  let currentMode = 'new';
+
+  function switchTab(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.tab[data-mode="${mode}"]`).classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.panel[data-panel="${mode}"]`).classList.add('active');
+    document.getElementById('result-area').classList.remove('visible');
+  }
+
+  function val(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  function generate(mode) {
+    let prompt = '';
+
+    if (mode === 'new') {
+      const name    = val('new-name');
+      const summary = val('new-summary');
+      const detail  = val('new-detail');
+      const env     = val('new-env');
+      const note    = val('new-note');
+
+      if (!name || !summary || !detail) {
+        alert('「アプリ名」「概要」「詳細内容」は必須です。');
+        return;
+      }
+
+      prompt = `# 新規アプリ開発の依頼
+
+## アプリ名
+${name}
+
+## 概要
+${summary}
+
+## 詳細内容
+${detail}
+${env ? `\n## 環境・バージョン\n${env}` : ''}
+${note ? `\n## 制約・注意事項\n${note}` : ''}
+
+---
+上記の要件をもとに、実装方針・アーキテクチャ・コードを提案してください。不明点があれば質問してください。`;
+    }
+
+    else if (mode === 'bug') {
+      const summary  = val('bug-summary');
+      const symptom  = val('bug-symptom');
+      const steps    = val('bug-steps');
+      const expected = val('bug-expected');
+      const actual   = val('bug-actual');
+      const log      = val('bug-log');
+      const env      = val('bug-env');
+      const note     = val('bug-note');
+
+      if (!summary) {
+        alert('「概要」は必須です。');
+        return;
+      }
+
+      prompt = `# バグ修正の依頼
+
+## 概要
+${summary}
+
+## 詳細
+${symptom  ? `### 症状\n${symptom}\n` : ''}
+${steps    ? `### 再現手順\n${steps}\n` : ''}
+${expected ? `### 期待動作\n${expected}\n` : ''}
+${actual   ? `### 実際の動作\n${actual}\n` : ''}
+${log      ? `### エラーログ\n\`\`\`\n${log}\n\`\`\`\n` : ''}
+${env      ? `## 環境・バージョン\n${env}\n` : ''}
+${note     ? `## 制約・注意事項\n${note}\n` : ''}
+---
+上記のバグの原因を特定し、修正方法を提示してください。コードを修正する場合は修正前後の差分を示してください。`;
+    }
+
+    else if (mode === 'fix') {
+      const summary  = val('fix-summary');
+      const current  = val('fix-current');
+      const expected = val('fix-expected');
+      const reason   = val('fix-reason');
+      const env      = val('fix-env');
+      const note     = val('fix-note');
+
+      if (!summary || !current || !expected) {
+        alert('「概要」「現在の動作」「修正後の期待動作」は必須です。');
+        return;
+      }
+
+      prompt = `# 機能修正の依頼
+
+## 概要
+${summary}
+
+## 現在の動作
+${current}
+
+## 修正後の期待動作
+${expected}
+${reason ? `\n## 修正理由・背景\n${reason}` : ''}
+${env    ? `\n## 環境・バージョン\n${env}` : ''}
+${note   ? `\n## 制約・注意事項\n${note}` : ''}
+
+---
+上記の内容をもとに、既存機能を修正する実装方法を提案してください。修正箇所と影響範囲も合わせて教えてください。`;
+    }
+
+    else if (mode === 'feature') {
+      const summary = val('feature-summary');
+      const detail  = val('feature-detail');
+      const env     = val('feature-env');
+      const note    = val('feature-note');
+
+      if (!summary || !detail) {
+        alert('「概要」「詳細内容」は必須です。');
+        return;
+      }
+
+      prompt = `# 機能追加の依頼
+
+## 概要
+${summary}
+
+## 詳細内容
+${detail}
+${env  ? `\n## 環境・バージョン\n${env}` : ''}
+${note ? `\n## 制約・注意事項\n${note}` : ''}
+
+---
+上記の機能を既存コードに追加するための実装方法を提案してください。影響範囲や注意点も合わせて教えてください。`;
+    }
+
+    // 余分な空行を整理
+    prompt = prompt.replace(/\n{3,}/g, '\n\n').trim();
+
+    document.getElementById('result-text').textContent = prompt;
+    const area = document.getElementById('result-area');
+    area.classList.add('visible');
+    setTimeout(() => area.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+
+    const copyBtn = document.getElementById('copy-btn');
+    copyBtn.textContent = 'コピー';
+    copyBtn.classList.remove('copied');
+  }
+
+  function copyPrompt() {
+    const text = document.getElementById('result-text').textContent;
+    if (!text) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showToast).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+
+    function fallbackCopy() {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showToast(); } catch(e) {}
+      document.body.removeChild(ta);
+    }
+  }
+
+  function showToast() {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'コピー済み ✓';
+    btn.classList.add('copied');
+
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function clearForm(mode) {
+    if (!confirm('入力内容をリセットしますか？')) return;
+    document.querySelectorAll(`.panel[data-panel="${mode}"] textarea, .panel[data-panel="${mode}"] input`).forEach(el => el.value = '');
+    document.getElementById('result-area').classList.remove('visible');
+  }
+</script>
+</body>
+</html>
